@@ -1,0 +1,265 @@
+<sly data-sly-use.model="com.eaton.ecommerce.core.models.v1.MySubscriptionModel" />
+<script type="text/javascript">
+    var myCallback = function (val) {
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: '/eaton/recaptcha/verification',
+            success: function (data) {
+                document.querySelector("#rc").click()
+            },
+            error: function (error) {
+                grecaptcha.reset();
+                document.querySelector('input#rc').checked = false
+            }
+        });
+    };
+    var onloadCallback = function () {
+        grecaptcha.render('html_element', {
+            callback: myCallback,
+            'sitekey': "${model.recaptchaSiteKey @context='unsafe'}"
+        });
+    };
+</script>
+<script src="https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit" async defer>
+</script>
+<sly data-sly-test="${wcmmode.edit}">
+    <div class="alert alert-warning">Secure:: My Subscription :: Mock Data</div>
+</sly>
+<div class="my-subscription dynamic-table-section" data-load-more-limit="${model.initialCount}"
+    data-should-hide="${model.shouldHide}">
+
+    <div class="row section-wrapper">
+        <div class="my-subscription__header col-md-7 col-sm-5">${'my.subscriptions' @i18n}</div>
+        <div class="my-subscription__searchbox col-md-5 col-sm-7 col-xs-12">
+            <sly data-sly-test="${model.apiStatus && model.hasSearchResults}">
+                <input class="col-xs-11" type="text" id="subscriptionSearchBox"
+                    placeholder="${'search.by.activation.id.or.part.number' @i18n}">
+                <button id="searchMySubscription" type="submit" class="col-xs-1"> <i class="icon icon-search"
+                        aria-hidden="true"></i> </button>
+                <button id="clearMySubscription" type="reset" class="col-xs-1 hide"> <i class="icon icon-close"
+                        aria-hidden="true"></i> </button>
+            </sly>
+            <sly data-sly-test="${model.apiStatus && !model.hasSearchResults}">
+                <input class="col-xs-11" type="text" id="subscriptionSearchBox"
+                    placeholder="${'search.by.activation.id.or.part.number' @i18n}" disabled>
+                <button id="searchMySubscription" type="submit" class="col-xs-1" disabled> <i class="icon icon-search"
+                        aria-hidden="true"></i> </button>
+            </sly>
+            <sly data-sly-test="${!model.apiStatus && !model.hasSearchResults}">
+                <input class="col-xs-11" type="text" id="subscriptionSearchBox"
+                    placeholder="${'search.by.activation.id.or.part.number' @i18n}" disabled>
+                <button id="searchMySubscription" type="submit" class="col-xs-1" disabled> <i class="icon icon-search"
+                        aria-hidden="true"></i> </button>
+            </sly>
+        </div>
+    </div>
+    <div class="my-subscription__table-container">
+        <table class="my-subscription__table table-sortable" aria-describedby="MySubscription">
+            <thead class="my-subscription__table-head">
+                <tr>
+                    <th scope="col">${'product.name' @i18n}</th>
+                    <th scope="col">${'activation.id' @i18n}</th>
+                    <th scope="col">${'part.number' @i18n}</th>
+                    <th scope="col">${'expirationDate' @i18n}</th>
+                    <th scope="col">${'quantity' @i18n}</th>
+                </tr>
+            </thead>
+            <sly data-sly-test="${model.apiStatus && model.hasSearchResults}">
+                <tbody class="my-subscription__table-body">
+                    <tr data-expiration-date="${item.expirationDate}" data-item-status="${item.status}"
+                        data-item-auto-renewal-status="${item.autoRenewalStatus}" data-price="${item.price}"
+                        data-item-within-category="${item.withinCategory}" data-sly-repeat="${model.items}"
+                        class="${itemList.count > model.initialCount ? 'my-subscription__table-row hide' : 'my-subscription__table-row' }">
+                        <td>
+                            <span class="ellipsis" title="${item.product.name}">${item.product.name}</span>
+                            <div id="toggle-btn" class="hidden row action-btn">
+                                <div class="col-md-8 col-xs-2">
+                                    <div data-sly-test="${item.autoRenewal != 'N/A' && item.Status != 'FAILED'}"
+                                        class="renewer">
+                                        <input name="${item.product.name}" type="checkbox"
+                                            checked="${item.autoRenewal == 'ON'}" />
+                                        <span>&nbsp; ${'automatic.renewal' @i18n}</span>
+                                    </div>
+                                    <div class="lds-ellipsis hidden">
+                                        <div></div>
+                                        <div></div>
+                                        <div></div>
+                                        <div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row-fluid">
+                                <span id="itemStatus" class="capitalize ${item.status.toLowerCase @i18n}">
+                                    ${item.status.toLowerCase @i18n}
+                                </span>
+                                <a href="#" data-sly-test="${'TRIAL' in item.partNumber.partId}" type="button"
+                                    id="paidSubscription-modal-btn" data-duration="${item.term.numDuration}"
+                                    class="convertToPaid text-center action-btn upgrade" data-toggle="modal"
+                                    data-name="${item.product.name}" data-target="#paidSubscription-modal"
+                                    data-activationid="${item.activationId.id}" data-duration="${item.term.numDuration}"
+                                    data-productline="${item.productLine.name}"
+                                    data-productid="${item.partNumber.partId}" data-quantity="${item.numberOfCopies}">
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
+                                        xmlns="http://www.w3.org/2000/svg">
+                                        <g clip-path="url(#clip0_1375_84)">
+                                            <path
+                                                d="M10.6668 12.0001V13.3334H5.3335V12.0001H10.6668ZM7.3335 5.32675V10.6667H8.66683V5.32675H10.6668L8.00016 2.66675L5.3335 5.32675H7.3335Z"
+                                                fill="#1360B2" />
+                                        </g>
+                                        <defs>
+                                            <clipPath id="clip0_1375_84">
+                                                <rect width="16" height="16" fill="white" />
+                                            </clipPath>
+                                        </defs>
+                                    </svg>${'Upgrade' @i18n}</a>
+                            </div>
+                        </td>
+                        <td class="activation-id"><a class="activation-id-link" data-toggle="modal"
+                                data-backdrop="static" data-keyboard="false"
+                                data-target="#multipleEmails-modal">${item.activationId.id}</a></td>
+                        <td>${item.partNumber.partId}</td>
+                        <td id="expirationDate"></td>
+                        <td class="quantity"><span class="show-mobile">${'quantity' @i18n}:
+                            </span>${item.numberOfCopies}
+                            <a data-sly-test="${item.isAvailableInWhiteList}"
+                                class="add-node-btn addnode text-center hidden" data-toggle="modal"
+                                data-target="#addnode-modal" data-name="${item.product.name}"
+                                data-activationid="${item.activationId.id}" data-productid="${item.partNumber.partId}"
+                                data-quantity="1" data-price="${item.price}" data-duration="${item.term.numDuration}">
+                                ${'add.new.node' @i18n}</a>
+                            <a type="button" id="resubmitModalBtn" data-duration="${item.term.numDuration}"
+                                class="hidden resubmitModalBtn blue-bg text-center action-btn" data-toggle="modal"
+                                data-target="#cards-modal" data-activationid="${item.activationId.id}"
+                                data-productid="${item.partNumber.partId}"
+                                data-quantity="${item.numberOfCopies}">${'resubmit' @i18n}</a>
+                            <a id="renewModalBtn" class="hidden renewModalBtn blue-bg text-center action-btn"
+                                data-toggle="modal" data-target="#cards-modal" data-duration="${item.term.numDuration}"
+                                data-activationid="${item.activationId.id}" data-productid="${item.partNumber.partId}"
+                                data-quantity="${item.numberOfCopies}">${'renew' @i18n}</a>
+                        </td>
+                    </tr>
+                </tbody>
+            </sly>
+        </table>
+    </div>
+    <sly data-sly-test="${model.apiStatus && model.hasSearchResults}">
+        <div class="my-subscription__load-more text-center" data-sly-test="${model.renderLoadMore}">
+            <button class="b-button b-button__primary b-button__primary--light load-more">${'load.more' @i18n}</button>
+        </div>
+    </sly>
+    <sly data-sly-test="${!model.apiStatus && !model.hasSearchResults}">
+        <div class="my-subscription__err">
+            <h1 class="eaton-title__headline">${properties.apiNoResultHeadLine}</h1>
+            <div class="text aem-GridColumn aem-GridColumn--default--12">
+                <!-- API Error Message code goes here -->
+                <div class="eaton-text-default">
+                    <div class="eaton-text-default__content rich-text-container overlapping__anchor">
+                        <p>${properties.apiNoResultSubHeadLine}</p>
+                        <p>${properties.apiNoResultMessage @ context = 'html'}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </sly>
+    <sly data-sly-test="${model.apiStatus && !model.hasSearchResults}">
+        <div class="my-subscription__err">
+            <h1 class="eaton-title__headline">${properties.allErrorsHeadLine}</h1>
+            <div class="text aem-GridColumn aem-GridColumn--default--12">
+                <!-- Subscription Error Message code goes here -->
+                <div class="eaton-text-default">
+                    <div class="eaton-text-default__content rich-text-container overlapping__anchor">
+                        <p>${properties.allErrorSubHeadLine}</p>
+                        <p>${properties.allErrorMessage @ context = 'html'}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </sly>
+    <div class="my-subscription__no-search-err hide">
+        <h1 class="eaton-title__headline">${properties.noSearchHeadLine}</h1>
+        <div class="text aem-GridColumn aem-GridColumn--default--12">
+            <!-- Search Box Error Message code goes here -->
+            <div class="eaton-text-default">
+                <div class="eaton-text-default__content rich-text-container overlapping__anchor">
+                    <p class="errorPara">${properties.noSearchSubHeadLine @ context = 'html'}</p>
+                    <p>${properties.resultMessage @ context = 'html'}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Modal -->
+    <div id="cards-modal" class="cards-modal modal fade" role="dialog">
+        <div class="modal-dialog">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>${'select.a.payment.method.and.submit' @i18n}
+                        <span class="pull-right" data-dismiss="modal">
+                            ✕
+                        </span>
+                    </h3>
+                </div>
+                <div class="modal-body">
+                    <br>
+                    <p>${'Select an existing card or ' @i18n}<a href="javascript:void(0)" data-toggle="modal"
+                            data-target="#resubmit-modal" onclick="">${'Add a
+                            new credit card' @i18n}</a></p>
+                    <table id="creditCardTable" class="table-responsive">
+                        <tbody id="creditCardTableBody">
+
+                        </tbody>
+                    </table>
+                    <br>
+                    <div class="row-fluid">
+                        <button id="submitSelectedCC" type="button" style="margin-right: 10px;"
+                            class="b-button b-button__tertiary b-button__tertiary--light" disabled>
+                            ${'resubmit' @i18n}
+                        </button>
+                        <button type="button" class="b-button b-button__primary b-button__primary--light"
+                            data-toggle="modal" data-target="#addnode-modal" data-dismiss="modal">${'cancel' @i18n}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Err message Modal for resubmit toggle failure -->
+    <div id="resubmit-fail-modal" class="modal fade" role="dialog">
+        <div class="modal-dialog">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header text-center">
+                    <span class="alert-icon icon-image">
+                        <em class="glyphicon glyphicon-alert"></em>
+                    </span>
+                    <span class="pull-right" data-dismiss="modal">
+                        ✕
+                    </span>
+                </div>
+                <div class="modal-body">
+                    <p class="text-center"><strong>${'unable.to.update.entitlement.status' @i18n}</strong></p>
+                    <br>
+                    <p>${'There was an issue while attempting to update your entitlement status. Please try again
+                        later.'
+                        @i18n}</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="b-button b-button__tertiary b-button__tertiary--light btn-slick"
+                        data-dismiss="modal">${'Ok' @i18n}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+<sly data-sly-include="resubmit.html" data-sly-unwrap></sly>
+<sly data-sly-include="addnode.html" data-sly-unwrap></sly>
+<sly data-sly-include="paidSubscription.html" data-sly-unwrap></sly>
+<sly data-sly-include="multipleEmails.html" data-sly-unwrap></sly>
