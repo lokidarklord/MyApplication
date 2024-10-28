@@ -1,65 +1,106 @@
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.json.JSONException;
 import java.util.List;
 
 public class MySubscriptionModel {
     private boolean showAddMoreColumn = false;  // Controls if the "Add" button column is visible
+    private boolean useJsonDemoData = true; // Set this to `false` to use ErpProductInfo for production
 
     public List<LineItem> getMatchingProductIds(List<LineItem> items) {
         LOG.debug("MySubscriptionModel :: getMatchingProductIds :: Start");
 
-        // Mock JSON data for testing (formatted for Java versions <15)
-        String jsonData = "["
-                + "{\"Revenera Product Category\": \"IPM\", \"Expiration Date\": \"25-10-2024\"},"
-                + "{\"Revenera Product Category\": \"IPM\", \"Expiration Date\": \"\"},"
-                + "{\"Revenera Product Category\": \"\", \"Expiration Date\": \"01-01-2023\"},"
-                + "{\"Revenera Product Category\": \"Non-IPM\", \"Expiration Date\": \"\"}"
-                + "]";
-
-        // Parse JSON data
-        JSONArray jsonArray = new JSONArray(jsonData);
-
-        items.forEach((curItem) -> {
+        if (useJsonDemoData) {
+            // Use JSON data for demo purposes
+            String jsonData = "["
+                    + "{\"Revenera Product Category\": \"IPM\", \"Expiration Date\": \"25-10-2024\"},"
+                    + "{\"Revenera Product Category\": \"IPM\", \"Expiration Date\": \"\"},"
+                    + "{\"Revenera Product Category\": \"\", \"Expiration Date\": \"01-01-2023\"},"
+                    + "{\"Revenera Product Category\": \"Non-IPM\", \"Expiration Date\": \"\"}"
+                    + "]";
+            
             try {
-                String productLineName = curItem.getProductLine().getName();
-                JSONObject matchedItem = null;
+                // Parse JSON data
+                JSONArray jsonArray = new JSONArray(jsonData);
 
-                // Look for a matching product category in JSON
-                for (int i = 0; i < jsonArray.length(); i++) {
-                    JSONObject jsonItem = jsonArray.getJSONObject(i);
-                    String category = jsonItem.optString("Revenera Product Category", "");
-                    
-                    // Match product line name with the Revenera Product Category
-                    if (category.equals(productLineName)) {
-                        matchedItem = jsonItem;
-                        break;
+                items.forEach((curItem) -> {
+                    try {
+                        String productLineName = curItem.getProductLine().getName();
+                        JSONObject matchedItem = null;
+
+                        // Find a matching product category in JSON
+                        for (int i = 0; i < jsonArray.length(); i++) {
+                            JSONObject jsonItem = jsonArray.getJSONObject(i);
+                            String category = jsonItem.optString("Revenera Product Category", "");
+
+                            // Match product line name with the Revenera Product Category
+                            if (category.equals(productLineName)) {
+                                matchedItem = jsonItem;
+                                break;
+                            }
+                        }
+
+                        // Process matched item if found
+                        if (matchedItem != null) {
+                            String reveneraProductCategory = matchedItem.optString("Revenera Product Category", "");
+
+                            // Show "Add" button if "Revenera Product Category" has a non-empty value
+                            if (reveneraProductCategory != null && !reveneraProductCategory.isEmpty()) {
+                                curItem.setWithinCategory(true);  // Indicate the item is within the category
+                                curItem.setIsAvailableInWhiteList(true);  // Show "Add" button
+                                curItem.setPrice("Demo Price"); // Example fixed price for demo
+                                showAddMoreColumn = true;  // Set flag to show the "Add" column in the UI
+                            } else {
+                                // Hide "Add" button if Revenera Product Category is empty
+                                curItem.setIsAvailableInWhiteList(false);
+                            }
+                        } else {
+                            curItem.setIsAvailableInWhiteList(false);  // Hide "Add" button if no match found
+                        }
+                    } catch (Exception e) {
+                        LOG.error("Error processing line item with JSON data: {}", e.getMessage());
                     }
-                }
-
-                // Only process if a matching item is found in the whitelist
-                if (matchedItem != null) {
-                    String reveneraProductCategory = matchedItem.optString("Revenera Product Category", "");
-
-                    // Show "Add" button if "Revenera Product Category" has a non-empty value
-                    if (reveneraProductCategory != null && !reveneraProductCategory.isEmpty()) {
-                        curItem.setIsAvailableInWhiteList(true);  // Show "Add" button
-                        showAddMoreColumn = true;  // Set flag to show the "Add" column in the UI
-                        curItem.setStatus("Whitelisted");  // Optional: Set status for display
-                    } else {
-                        // Hide "Add" button if Revenera Product Category is empty
-                        curItem.setIsAvailableInWhiteList(false);
-                        curItem.setStatus("Not Whitelisted");
-                    }
-                } else {
-                    curItem.setIsAvailableInWhiteList(false);  // Hide "Add" button if no match found
-                }
-            } catch (Exception e) {
-                LOG.error("MySubscriptionModel :: getMatchingProductIds :: Error :: {}", e);
+                });
+            } catch (JSONException e) {
+                LOG.error("Error parsing JSON data: {}", e.getMessage());
             }
-        });
+        } else {
+            // Use ErpProductInfo for production
+            items.forEach((curItem) -> {
+                try {
+                    String productLineName = curItem.getProductLine().getName();
+                    ErpProductInfo productInfo = erpProductService.findErpProductInfo(curItem.getPartNumber().getPrimaryKeys().get(PART_ID));
+
+                    if (productInfo != null) {
+                        String reveneraProductCategory = productInfo.getReveneraProductCategory();
+
+                        // Match Revenera Product Category with productLineName
+                        if (reveneraProductCategory != null && reveneraProductCategory.equals(productLineName)) {
+                            curItem.setWithinCategory(true);  // Indicate the item is within the category
+                            curItem.setIsAvailableInWhiteList(true);  // Show "Add" button
+                            curItem.setPrice(getPricingInformation(productInfo)); // Set the price based on ErpProductInfo
+                            showAddMoreColumn = true;  // Set flag to show the "Add" column in the UI
+                        } else {
+                            // Hide "Add" button if Revenera Product Category doesn't match
+                            curItem.setIsAvailableInWhiteList(false);
+                        }
+                    } else {
+                        curItem.setIsAvailableInWhiteList(false);  // Hide "Add" button if product info is missing
+                    }
+                } catch (Exception e) {
+                    LOG.error("Error processing line item with ErpProductInfo: {}", e.getMessage());
+                }
+            });
+        }
 
         LOG.debug("MySubscriptionModel :: getMatchingProductIds :: End");
         return items;
+    }
+
+    // Method to fetch pricing information based on the product (only used in production)
+    private String getPricingInformation(ErpProductInfo productInfo) {
+        // Implement pricing logic here
+        return "Calculated Price";  // Placeholder for the actual pricing logic
     }
 
     // Getter for showAddMoreColumn to be used in frontend template
@@ -67,16 +108,3 @@ public class MySubscriptionModel {
         return showAddMoreColumn;
     }
 }
-
-Background:
-
-In the my subscriptions component, a subscription must have an expiration date before we display the “Add” button. This prevents a user from purchasing additional subscriptions for products that do not have an expiration date or have not been activated yet.
-
-Requirements:
-
-Have the "Add" button appear for those software subscriptions that offer this to appear even if there is no expire date.
-
-Look at the Revenera Product Category in the whitelist and if there is a value show the Add button, if there is no value in there we do not show the Add button..
-
-The two parts that should show an add button, Smart Ambient Monitor is a 1 year subscription and IPM-OP-SUB3.
-
