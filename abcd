@@ -72,3 +72,15 @@ public class MySubscriptionModel {
         return showAddMoreColumn;
     }
 }
+Background:
+
+In the my subscriptions component, a subscription must have an expiration date before we display the “Add” button. This prevents a user from purchasing additional subscriptions for products that do not have an expiration date or have not been activated yet.
+
+Requirements:
+
+Have the "Add" button appear for those software subscriptions that offer this to appear even if there is no expire date.
+
+Look at the Revenera Product Category in the whitelist and if there is a value show the Add button, if there is no value in there we do not show the Add button..
+
+The two parts that should show an add button, Smart Ambient Monitor is a 1 year subscription and IPM-OP-SUB3.
+
