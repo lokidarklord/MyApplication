@@ -1,65 +1,72 @@
-private boolean showAddMoreColumn = false;  // Flag to control the visibility of the "ADD" button column
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.util.List;
 
-private List<LineItem> getMatchingProductIds(List<LineItem> items) {
-    LOG.debug("MySubscriptionModel :: getMatchingProductIds :: Start");
+public class MySubscriptionModel {
+    private boolean showAddMoreColumn = false;  // Controls if the "ADD" button column is visible
 
-    items.forEach((curItem) -> {
-        try {
-            String productLineName = curItem.getProductLine().getName();
+    public List<LineItem> getMatchingProductIds(List<LineItem> items) {
+        LOG.debug("MySubscriptionModel :: getMatchingProductIds :: Start");
 
-            // Mock data for specific test cases
-            if ("TestProduct1".equals(productLineName)) {
-                // Case 1: Product in Ravenera Category, no expiration date
-                curItem.setWithinCategory(true);
-                curItem.setPrice("100 USD");
-                curItem.setIsAvailableInWhiteList(true);  // Show "ADD" button
-                showAddMoreColumn = true;  // Ensure "ADD" column is shown
+        // Mock JSON data for testing
+        String jsonData = """
+            [
+                {"Revenera Product Category": "IPM", "Expiration Date": "25-10-2024"},
+                {"Revenera Product Category": "IPM", "Expiration Date": ""},
+                {"Revenera Product Category": "", "Expiration Date": "01-01-2023"},
+                {"Revenera Product Category": "Non-IPM", "Expiration Date": ""}
+            ]
+        """;
 
-            } else if ("TestProduct2".equals(productLineName)) {
-                // Case 2: Product in Ravenera Category with expiration date
-                curItem.setWithinCategory(true);
-                curItem.setPrice("200 USD");
-                curItem.setIsAvailableInWhiteList(false);  // Hide "ADD" button
+        // Parse JSON data
+        JSONArray jsonArray = new JSONArray(jsonData);
 
-            } else if ("NonRaveneraProduct".equals(productLineName)) {
-                // Case 3: Product not in Ravenera Category
-                curItem.setWithinCategory(false);
-                curItem.setPrice("300 USD");
-                curItem.setIsAvailableInWhiteList(false);  // Hide "ADD" button
+        items.forEach((curItem) -> {
+            try {
+                String productLineName = curItem.getProductLine().getName();
 
-            } else {
-                // Real data handling for other products
-                ErpProductInfo productInfo = erpProductService.findErpProductInfo(
-                    curItem.getPartNumber().getPrimaryKeys().get(PART_ID)
-                );
+                // Find JSON object matching the current item's product line name
+                JSONObject matchedItem = null;
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    JSONObject jsonItem = jsonArray.getJSONObject(i);
+                    if (jsonItem.getString("Revenera Product Category").equals(productLineName)) {
+                        matchedItem = jsonItem;
+                        break;
+                    }
+                }
 
-                if (productInfo != null) {
-                    String reveneraProductCategory = productInfo.getReveneraProductCategory();
+                // Process matched item based on presence of "Revenera Product Category" and "Expiration Date"
+                if (matchedItem != null) {
+                    String reveneraProductCategory = matchedItem.getString("Revenera Product Category");
+                    String expirationDateStr = matchedItem.getString("Expiration Date");
 
-                    // Set isAvailableInWhiteList based on real product category
-                    if (reveneraProductCategory != null && reveneraProductCategory.equals(productLineName)) {
-                        curItem.setWithinCategory(true);
-                        String price = getPricingInformation(productInfo);
-                        curItem.setPrice(price);
-                        curItem.setIsAvailableInWhiteList(true);  // Mark as in whitelist
-                        showAddMoreColumn = true;  // Show "ADD" column if at least one product is in whitelist
+                    // Check if "Revenera Product Category" has a non-empty value
+                    boolean hasNoExpirationDate = (expirationDateStr == null || expirationDateStr.isEmpty());
+
+                    if (reveneraProductCategory != null && !reveneraProductCategory.isEmpty() && hasNoExpirationDate) {
+                        // Show "ADD" button if in whitelist and no expiration date
+                        curItem.setIsAvailableInWhiteList(true);
+                        showAddMoreColumn = true;  // Show "ADD" column if any item is eligible
+                        curItem.setStatus("Whitelisted with No Expiration");  // Optional: Set status for display
                     } else {
+                        // Hide "ADD" button if not in whitelist or if there is an expiration date
                         curItem.setIsAvailableInWhiteList(false);
+                        curItem.setStatus("Not Whitelisted or Has Expiration");
                     }
                 } else {
-                    curItem.setIsAvailableInWhiteList(false);
+                    curItem.setIsAvailableInWhiteList(false);  // Hide "ADD" button if no match found
                 }
+            } catch (Exception e) {
+                LOG.error("MySubscriptionModel :: getMatchingProductIds :: Error :: {}", e);
             }
-        } catch (Exception e) {
-            LOG.error("MySubscriptionModel :: getMatchingProductIds :: Error :: {}", e);
-        }
-    });
+        });
 
-    LOG.debug("MySubscriptionModel :: getMatchingProductIds :: End");
-    return items;
-}
+        LOG.debug("MySubscriptionModel :: getMatchingProductIds :: End");
+        return items;
+    }
 
-// Getter method for showAddMoreColumn to use in the frontend template
-public boolean isShowAddMoreColumn() {
-    return showAddMoreColumn;
+    // Getter for showAddMoreColumn to be used in frontend template
+    public boolean isShowAddMoreColumn() {
+        return showAddMoreColumn;
+    }
 }
