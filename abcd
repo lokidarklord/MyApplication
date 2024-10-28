@@ -8,15 +8,13 @@ public class MySubscriptionModel {
     public List<LineItem> getMatchingProductIds(List<LineItem> items) {
         LOG.debug("MySubscriptionModel :: getMatchingProductIds :: Start");
 
-        // Mock JSON data for testing
-        String jsonData = """
-            [
-                {"Revenera Product Category": "IPM", "Expiration Date": "25-10-2024"},
-                {"Revenera Product Category": "IPM", "Expiration Date": ""},
-                {"Revenera Product Category": "", "Expiration Date": "01-01-2023"},
-                {"Revenera Product Category": "Non-IPM", "Expiration Date": ""}
-            ]
-        """;
+        // Mock JSON data for testing (using traditional string concatenation)
+        String jsonData = "["
+                + "{\"Revenera Product Category\": \"IPM\", \"Expiration Date\": \"25-10-2024\"},"
+                + "{\"Revenera Product Category\": \"IPM\", \"Expiration Date\": \"\"},"
+                + "{\"Revenera Product Category\": \"\", \"Expiration Date\": \"01-01-2023\"},"
+                + "{\"Revenera Product Category\": \"Non-IPM\", \"Expiration Date\": \"\"}"
+                + "]";
 
         // Parse JSON data
         JSONArray jsonArray = new JSONArray(jsonData);
@@ -24,32 +22,36 @@ public class MySubscriptionModel {
         items.forEach((curItem) -> {
             try {
                 String productLineName = curItem.getProductLine().getName();
-
-                // Find JSON object matching the current item's product line name
                 JSONObject matchedItem = null;
+
+                // Look for a matching product category in JSON
                 for (int i = 0; i < jsonArray.length(); i++) {
                     JSONObject jsonItem = jsonArray.getJSONObject(i);
-                    if (jsonItem.getString("Revenera Product Category").equals(productLineName)) {
+                    String category = jsonItem.optString("Revenera Product Category", "");
+                    
+                    // Match the category with product line name
+                    if (category.equals(productLineName)) {
                         matchedItem = jsonItem;
                         break;
                     }
                 }
 
-                // Process matched item based on presence of "Revenera Product Category" and "Expiration Date"
+                // Process matched item if found
                 if (matchedItem != null) {
-                    String reveneraProductCategory = matchedItem.getString("Revenera Product Category");
-                    String expirationDateStr = matchedItem.getString("Expiration Date");
+                    String reveneraProductCategory = matchedItem.optString("Revenera Product Category", "");
+                    String expirationDateStr = matchedItem.optString("Expiration Date", "");
 
-                    // Check if "Revenera Product Category" has a non-empty value
-                    boolean hasNoExpirationDate = (expirationDateStr == null || expirationDateStr.isEmpty());
+                    // Check if "Revenera Product Category" has a non-empty value and no expiration date
+                    boolean hasCategory = reveneraProductCategory != null && !reveneraProductCategory.isEmpty();
+                    boolean hasNoExpirationDate = expirationDateStr == null || expirationDateStr.isEmpty();
 
-                    if (reveneraProductCategory != null && !reveneraProductCategory.isEmpty() && hasNoExpirationDate) {
+                    if (hasCategory && hasNoExpirationDate) {
                         // Show "ADD" button if in whitelist and no expiration date
                         curItem.setIsAvailableInWhiteList(true);
                         showAddMoreColumn = true;  // Show "ADD" column if any item is eligible
-                        curItem.setStatus("Whitelisted with No Expiration");  // Optional: Set status for display
+                        curItem.setStatus("Whitelisted with No Expiration");  // Optional status for display
                     } else {
-                        // Hide "ADD" button if not in whitelist or if there is an expiration date
+                        // Hide "ADD" button if no category or expiration date is present
                         curItem.setIsAvailableInWhiteList(false);
                         curItem.setStatus("Not Whitelisted or Has Expiration");
                     }
