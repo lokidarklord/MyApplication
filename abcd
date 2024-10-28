@@ -3,12 +3,12 @@ import org.json.JSONObject;
 import java.util.List;
 
 public class MySubscriptionModel {
-    private boolean showAddMoreColumn = false;  // Controls if the "ADD" button column is visible
+    private boolean showAddMoreColumn = false;  // Controls if the "Add" button column is visible
 
     public List<LineItem> getMatchingProductIds(List<LineItem> items) {
         LOG.debug("MySubscriptionModel :: getMatchingProductIds :: Start");
 
-        // Mock JSON data for testing (using traditional string concatenation)
+        // Mock JSON data for testing (formatted for Java versions <15)
         String jsonData = "["
                 + "{\"Revenera Product Category\": \"IPM\", \"Expiration Date\": \"25-10-2024\"},"
                 + "{\"Revenera Product Category\": \"IPM\", \"Expiration Date\": \"\"},"
@@ -29,34 +29,29 @@ public class MySubscriptionModel {
                     JSONObject jsonItem = jsonArray.getJSONObject(i);
                     String category = jsonItem.optString("Revenera Product Category", "");
                     
-                    // Match the category with product line name
+                    // Match product line name with the Revenera Product Category
                     if (category.equals(productLineName)) {
                         matchedItem = jsonItem;
                         break;
                     }
                 }
 
-                // Process matched item if found
+                // Only process if a matching item is found in the whitelist
                 if (matchedItem != null) {
                     String reveneraProductCategory = matchedItem.optString("Revenera Product Category", "");
-                    String expirationDateStr = matchedItem.optString("Expiration Date", "");
 
-                    // Check if "Revenera Product Category" has a non-empty value and no expiration date
-                    boolean hasCategory = reveneraProductCategory != null && !reveneraProductCategory.isEmpty();
-                    boolean hasNoExpirationDate = expirationDateStr == null || expirationDateStr.isEmpty();
-
-                    if (hasCategory && hasNoExpirationDate) {
-                        // Show "ADD" button if in whitelist and no expiration date
-                        curItem.setIsAvailableInWhiteList(true);
-                        showAddMoreColumn = true;  // Show "ADD" column if any item is eligible
-                        curItem.setStatus("Whitelisted with No Expiration");  // Optional status for display
+                    // Show "Add" button if "Revenera Product Category" has a non-empty value
+                    if (reveneraProductCategory != null && !reveneraProductCategory.isEmpty()) {
+                        curItem.setIsAvailableInWhiteList(true);  // Show "Add" button
+                        showAddMoreColumn = true;  // Set flag to show the "Add" column in the UI
+                        curItem.setStatus("Whitelisted");  // Optional: Set status for display
                     } else {
-                        // Hide "ADD" button if no category or expiration date is present
+                        // Hide "Add" button if Revenera Product Category is empty
                         curItem.setIsAvailableInWhiteList(false);
-                        curItem.setStatus("Not Whitelisted or Has Expiration");
+                        curItem.setStatus("Not Whitelisted");
                     }
                 } else {
-                    curItem.setIsAvailableInWhiteList(false);  // Hide "ADD" button if no match found
+                    curItem.setIsAvailableInWhiteList(false);  // Hide "Add" button if no match found
                 }
             } catch (Exception e) {
                 LOG.error("MySubscriptionModel :: getMatchingProductIds :: Error :: {}", e);
@@ -72,6 +67,7 @@ public class MySubscriptionModel {
         return showAddMoreColumn;
     }
 }
+
 Background:
 
 In the my subscriptions component, a subscription must have an expiration date before we display the “Add” button. This prevents a user from purchasing additional subscriptions for products that do not have an expiration date or have not been activated yet.
